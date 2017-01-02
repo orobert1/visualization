@@ -151,10 +151,10 @@
 	  }
 	  subNode.onmouseenter = this.showName.bind(this);
 	  subNode.onmouseleave = this.hideName.bind(this);
-	  subNode.style.width = this.getScale() / 17 + "px";
-	  subNode.style.height = this.getScale() / 17 + "px";
-	  subNode.style.right = 0 - this.getScale() / 34 + "px";
-	  subNode.style.top = 0 - this.getScale() / 34 + "px";
+	  subNode.style.width = this.getScale() / 23 + "px";
+	  subNode.style.height = this.getScale() / 23 + "px";
+	  subNode.style.right = 0 - this.getScale() / 46 + "px";
+	  subNode.style.top = 0 - this.getScale() / 46 + "px";
 	  pivot.style.top = this.offset.height / 2 + "px";
 	  pivot.style.left = this.offset.width / 2 + "px";
 	
