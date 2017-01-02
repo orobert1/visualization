@@ -50,7 +50,7 @@
 	
 	var run = function run() {
 	  var graph = new Graph("canvas");
-	  for (var i = 0; i < 500; i++) {
+	  for (var i = 0; i < 100; i++) {
 	    var mutualFriends = Math.random() * 80;
 	    var invitedRandom = Math.random() * 2;
 	    if (invitedRandom > 1) {
@@ -79,20 +79,23 @@
 	  this.canvas = document.getElementById(id);
 	  this.ctx = this.canvas.getContext("2d");
 	  this.centerX = this.canvas.width / 2;
-	  this.position = { x: 200, y: 500 };
-	  this.width = 100;
-	  this.height = 100;
+	  this.position = { x: 100, y: 100 };
+	  this.width = 50;
+	  this.height = 50;
+	  this.offset = { width: this.width, height: this.height };
 	  this.centerY = this.canvas.height / 2;
-	  this.placeCenterNode();
+	  this.centerNode = this.placeCenterNode();
 	}
 	
 	Graph.prototype.placeCenterNode = function () {
 	  var centerNode = document.createElement("div");
 	  centerNode.className = "centerNode";
+	  centerNode.style.width = this.width + "px";
+	  centerNode.style.height = this.height + "px";
 	  centerNode.style.top = this.position.y + this.centerY - this.width / 2 + "px";
 	  centerNode.style.left = this.position.x + this.centerX - this.height / 2 + "px";
-	
 	  document.body.appendChild(centerNode);
+	  return centerNode;
 	};
 	
 	Graph.prototype.addContact = function (contact) {
@@ -102,8 +105,11 @@
 	Graph.prototype.graphContacts = function () {
 	  for (var i = 0; i < this.contacts.length; i++) {
 	    var degrees = 360 / this.contacts.length * i;
-	    this.nodes.push(new Node(this.contacts[i], i, this.canvas, this.ctx, { x: this.centerX, y: this.centerY }, degrees, this.position));
+	    this.nodes.push(new Node(this.contacts[i], i, this.canvas, this.ctx, { x: this.centerX, y: this.centerY }, degrees, this.position, this.centerNode, this.offset));
 	  }
+	  var topNode = document.createElement("div");
+	  topNode.id = "topNode";
+	  this.centerNode.appendChild(topNode);
 	};
 	
 	module.exports = Graph;
@@ -114,7 +120,7 @@
 
 	"use strict";
 	
-	function graphNode(contact, index, canvas, ctx, center, degrees, position) {
+	function graphNode(contact, index, canvas, ctx, center, degrees, position, centerNode, offset) {
 	  this.mutualFriends = contact.mutualFriends;
 	  this.name = contact.name;
 	  this.index = index;
@@ -124,36 +130,61 @@
 	  this.ctx = ctx;
 	  this.position = position;
 	  this.degrees = degrees;
-	  this.beginOffset = 10;
-	  this.scaleMultiplier = 15;
+	  this.beginOffset = 30;
+	  this.scaleMultiplier = 4;
+	  this.centerNode = centerNode;
+	  this.offset = offset;
 	  this.renderNode();
 	}
 	
 	graphNode.prototype.renderNode = function () {
-	  this.element = this.createDiv();
-	  if (this.invited) {
-	    this.element.style.backgroundColor = "rgb( 150,150,150 )";
+	  var pivot = this.createDiv("pivot");
+	  var bar = this.createDiv("bar");
+	  var subNode = this.createDiv("subNode");
+	  var name = this.createDiv("name");
+	  pivot.appendChild(bar);
+	  bar.appendChild(subNode);
+	  subNode.appendChild(name);
+	  name.innerText = this.name;
+	  if (!this.invited) {
+	    subNode.style.backgroundColor = "rgb(100,100,100)";
 	  }
-	  this.element.style.transition = this.mutualFriends / 25 + "s";
-	  this.element.style.top = this.center.y + this.position.y + "px";
-	  this.element.style.left = this.center.x + this.position.x + "px";
-	  this.element.style.width = "0px";
-	  this.element.style.height = "0px";
+	  subNode.onmouseenter = this.showName.bind(this);
+	  subNode.onmouseleave = this.hideName.bind(this);
+	  subNode.style.width = this.getScale() / 17 + "px";
+	  subNode.style.height = this.getScale() / 17 + "px";
+	  subNode.style.right = 0 - this.getScale() / 34 + "px";
+	  subNode.style.top = 0 - this.getScale() / 34 + "px";
+	  pivot.style.top = this.offset.height / 2 + "px";
+	  pivot.style.left = this.offset.width / 2 + "px";
 	
-	  document.body.appendChild(this.element);
+	  this.centerNode.appendChild(pivot);
+	  pivot.style.transform = "rotate( " + this.degrees + "deg )";
 	  window.setTimeout(function () {
-	
-	    this.element.style.top = this.position.y + this.center.y + this.getY() + "px";
-	    this.element.style.left = this.position.x + this.center.x + this.getX() + "px";
-	    this.element.style.width = this.mutualFriends;
-	    this.element.style.height = this.mutualFriends;
-	  }.bind(this), 100 + 10);
+	    bar.style.width = this.getScale();
+	    bar.style.transition = this.getScale() / 150 + "s";
+	  }.bind(this), this.getScale() * 6);
 	};
 	
-	graphNode.prototype.createDiv = function () {
+	graphNode.prototype.createDiv = function (className) {
 	  var element = document.createElement("div");
-	  element.className = "node";
+	  element.id = className + this.index;
+	  element.className = className;
 	  return element;
+	};
+	graphNode.prototype.getDiv = function (className) {
+	  var element = document.getElementById(className + this.index);
+	  return element;
+	};
+	
+	graphNode.prototype.showName = function () {
+	  var name = this.getDiv("name");
+	  name.style.opacity = 1;
+	};
+	
+	graphNode.prototype.hideName = function () {
+	  var name = this.getDiv("name");
+	  name.style.opacity = 0;
 	};
 	
 	graphNode.prototype.sinDegrees = function () {
