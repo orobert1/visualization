@@ -49,7 +49,7 @@
 	var Graph = __webpack_require__(1);
 	
 	var run = function run() {
-	  var graph = new Graph("canvas");
+	  var graph = new Graph("dragSurface", "dataVis");
 	  for (var i = 0; i < 100; i++) {
 	    var mutualFriends = Math.random() * 80;
 	    var invitedRandom = Math.random() * 2;
@@ -73,17 +73,19 @@
 	
 	var Node = __webpack_require__(2);
 	
-	function Graph(id) {
+	function Graph(id, dataVis) {
+	  this.dataVis = document.getElementById(dataVis);
 	  this.contacts = [];
 	  this.nodes = [];
-	  this.canvas = document.getElementById(id);
-	  this.ctx = this.canvas.getContext("2d");
-	  this.centerX = this.canvas.width / 2;
-	  this.position = { x: 100, y: 100 };
-	  this.width = 50;
-	  this.height = 50;
+	  this.dragSurface = document.getElementById(id);
+	  this.dragSurface.style.height = window.innerHeight;
+	  this.dragSurface.ondragstart = this.dragStart.bind(this);
+	  this.dragSurface.ondrag = this.drag.bind(this);
+	  this.position = { x: window.innerWidth / 2, y: 700 };
+	  this.scale = 4;
+	  this.width = this.scale * 15;
+	  this.height = this.scale * 15;
 	  this.offset = { width: this.width, height: this.height };
-	  this.centerY = this.canvas.height / 2;
 	  this.centerNode = this.placeCenterNode();
 	}
 	
@@ -92,23 +94,53 @@
 	  centerNode.className = "centerNode";
 	  centerNode.style.width = this.width + "px";
 	  centerNode.style.height = this.height + "px";
-	  centerNode.style.top = this.position.y + this.centerY - this.width / 2 + "px";
-	  centerNode.style.left = this.position.x + this.centerX - this.height / 2 + "px";
-	  document.body.appendChild(centerNode);
+	  centerNode.style.top = this.position.y - this.width / 2 + "px";
+	  centerNode.style.left = this.position.x - this.height / 2 + "px";
+	  this.dataVis.appendChild(centerNode);
 	  return centerNode;
 	};
+	Graph.prototype.dragStart = function (e) {
+	  var x = e.clientX;
+	  var y = e.clientY;
+	  this.mouseStart = { x: x, y: y };
+	};
+	
+	Graph.prototype.drag = function (e) {
+	  var x = e.clientX;
+	  var y = e.clientY;
+	  if ((this.mouseStart.x !== x || this.mouseStart.y !== y) && x && y) {
+	    this.position.x += x - this.mouseStart.x;
+	    this.position.y += y - this.mouseStart.y;
+	    this.mouseStart.x = x;
+	    this.mouseStart.y = y;
+	    this.centerNode.style.top = this.position.y - this.width / 2 + "px";
+	    this.centerNode.style.left = this.position.x - this.height / 2 + "px";
+	  }
+	};
+	
+	Graph.prototype.dragEnd = function () {};
 	
 	Graph.prototype.addContact = function (contact) {
 	  this.contacts.push(contact);
 	};
 	
+	Graph.prototype.changeScale = function () {
+	  for (var i = 0; i < this.nodes.length; i++) {
+	    var node = this.nodes[i];
+	    node.updateScale(this.scale);
+	  }
+	};
+	
 	Graph.prototype.graphContacts = function () {
 	  for (var i = 0; i < this.contacts.length; i++) {
 	    var degrees = 360 / this.contacts.length * i;
-	    this.nodes.push(new Node(this.contacts[i], i, this.canvas, this.ctx, { x: this.centerX, y: this.centerY }, degrees, this.position, this.centerNode, this.offset));
+	    this.nodes.push(new Node(this.contacts[i], i, this.canvas, this.ctx, { x: this.centerX, y: this.centerY }, degrees, this.position, this.centerNode, this.offset, this.scale));
 	  }
 	  var topNode = document.createElement("div");
 	  topNode.id = "topNode";
+	  topNode.draggable = "true";
+	  topNode.ondragstart = this.dragStart.bind(this);
+	  topNode.ondrag = this.drag.bind(this);
 	  this.centerNode.appendChild(topNode);
 	};
 	
@@ -120,7 +152,7 @@
 
 	"use strict";
 	
-	function graphNode(contact, index, canvas, ctx, center, degrees, position, centerNode, offset) {
+	function graphNode(contact, index, canvas, ctx, center, degrees, position, centerNode, offset, scale) {
 	  this.mutualFriends = contact.mutualFriends;
 	  this.name = contact.name;
 	  this.index = index;
@@ -130,8 +162,9 @@
 	  this.ctx = ctx;
 	  this.position = position;
 	  this.degrees = degrees;
-	  this.beginOffset = 30;
-	  this.scaleMultiplier = 4;
+	  this.beginOffset = 200;
+	  this.scaleProps = [];
+	  this.scaleMultiplier = scale;
 	  this.centerNode = centerNode;
 	  this.offset = offset;
 	  this.renderNode();
@@ -151,19 +184,29 @@
 	  }
 	  subNode.onmouseenter = this.showName.bind(this);
 	  subNode.onmouseleave = this.hideName.bind(this);
-	  subNode.style.width = this.getScale() / 23 + "px";
-	  subNode.style.height = this.getScale() / 23 + "px";
-	  subNode.style.right = 0 - this.getScale() / 46 + "px";
-	  subNode.style.top = 0 - this.getScale() / 46 + "px";
+	  this.registerScaleDiv(subNode, "width", this.getWidthHeight.bind(this));
+	  this.registerScaleDiv(subNode, "height", this.getWidthHeight.bind(this));
+	  this.registerScaleDiv(subNode, "top", this.getOffset.bind(this));
+	  this.registerScaleDiv(name, "bottom", this.getBottom.bind(this));
 	  pivot.style.top = this.offset.height / 2 + "px";
 	  pivot.style.left = this.offset.width / 2 + "px";
-	
 	  this.centerNode.appendChild(pivot);
 	  pivot.style.transform = "rotate( " + this.degrees + "deg )";
 	  window.setTimeout(function () {
-	    bar.style.width = this.getScale();
+	    this.registerScaleDiv(bar, "width", this.getScale.bind(this));
 	    bar.style.transition = this.getScale() / 150 + "s";
 	  }.bind(this), this.getScale() * 6);
+	};
+	graphNode.prototype.getWidthHeight = function () {
+	  return this.scaleMultiplier * 1.8 + "px";
+	};
+	
+	graphNode.prototype.getOffset = function () {
+	  return 0 - this.scaleMultiplier / 2 + "px";
+	};
+	
+	graphNode.prototype.getBottom = function () {
+	  return this.scaleMultiplier;
 	};
 	
 	graphNode.prototype.createDiv = function (className) {
@@ -177,13 +220,33 @@
 	  return element;
 	};
 	
+	graphNode.prototype.registerScaleDiv = function (div, property, value) {
+	  var scaleProp = { div: div, property: property, value: value };
+	  div.style[property] = value();
+	  this.scaleProps.push(scaleProp);
+	};
+	
+	graphNode.prototype.updateScale = function (newScale) {
+	  this.scaleMultiplier = newScale;
+	  console.log(this.scale);
+	
+	  for (var i = 0; i < this.scaleProps.length; i++) {
+	    var scaleProp = this.scaleProps[i];
+	    scaleProp.div.style[scaleProp.property] = scaleProp.value();
+	  }
+	};
+	
 	graphNode.prototype.showName = function () {
+	  var bar = this.getDiv("bar");
 	  var name = this.getDiv("name");
+	  bar.style.opacity = 1;
 	  name.style.opacity = 1;
 	};
 	
 	graphNode.prototype.hideName = function () {
+	  var bar = this.getDiv("bar");
 	  var name = this.getDiv("name");
+	  bar.style.opacity = .2;
 	  name.style.opacity = 0;
 	};
 	

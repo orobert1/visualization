@@ -1,4 +1,4 @@
-function graphNode( contact, index, canvas, ctx, center, degrees, position, centerNode, offset ){
+function graphNode( contact, index, canvas, ctx, center, degrees, position, centerNode, offset, scale ){
   this.mutualFriends = contact.mutualFriends;
   this.name = contact.name;
   this.index = index;
@@ -8,8 +8,9 @@ function graphNode( contact, index, canvas, ctx, center, degrees, position, cent
   this.ctx = ctx;
   this.position = position;
   this.degrees = degrees;
-  this.beginOffset = 30;
-  this.scaleMultiplier = 4;
+  this.beginOffset = 200;
+  this.scaleProps = [];
+  this.scaleMultiplier = scale;
   this.centerNode = centerNode;
   this.offset = offset
   this.renderNode();
@@ -29,20 +30,30 @@ graphNode.prototype.renderNode = function(){
   }
   subNode.onmouseenter = this.showName.bind( this );
   subNode.onmouseleave = this.hideName.bind( this );
-  subNode.style.width = this.getScale() / 23 + "px";
-  subNode.style.height = this.getScale() / 23 + "px";
-  subNode.style.right = 0 - (this.getScale() / 46) + "px";
-  subNode.style.top = 0 - (this.getScale() / 46) + "px";
+  this.registerScaleDiv( subNode, "width", this.getWidthHeight.bind( this ) );
+  this.registerScaleDiv( subNode, "height", this.getWidthHeight.bind( this ) );
+  this.registerScaleDiv( subNode, "top", this.getOffset.bind( this ) );
+  this.registerScaleDiv( name, "bottom", this.getBottom.bind( this ) );
   pivot.style.top = this.offset.height / 2 + "px";
   pivot.style.left = this.offset.width / 2 + "px";
-
   this.centerNode.appendChild( pivot );
   pivot.style.transform = `rotate( ${ this.degrees }deg )`;
   window.setTimeout( function(){
-    bar.style.width = this.getScale();
+    this.registerScaleDiv( bar, "width", this.getScale.bind( this ) );
     bar.style.transition = this.getScale() / 150 + "s";
   }.bind( this ), this.getScale() * 6 )
 
+}
+graphNode.prototype.getWidthHeight = function(){
+  return this.scaleMultiplier * 1.8 + "px";
+}
+
+graphNode.prototype.getOffset = function(){
+  return 0 - (this.scaleMultiplier / 2) + "px";
+}
+
+graphNode.prototype.getBottom = function(){
+  return this.scaleMultiplier;
 }
 
 graphNode.prototype.createDiv = function( className ){
@@ -56,14 +67,33 @@ graphNode.prototype.getDiv = function( className ){
   return element;
 }
 
+graphNode.prototype.registerScaleDiv = function( div, property, value ){
+  let scaleProp = { div: div, property: property, value: value };
+  div.style[property] = value();
+  this.scaleProps.push( scaleProp );
+}
+
+graphNode.prototype.updateScale = function( newScale ){
+  this.scaleMultiplier = newScale;
+  console.log(this.scale);
+
+  for (var i = 0; i < this.scaleProps.length; i++) {
+    let scaleProp = this.scaleProps[i];
+    scaleProp.div.style[scaleProp.property] = scaleProp.value();
+  }
+}
 
 graphNode.prototype.showName = function(){
+  let bar = this.getDiv( "bar" );
   let name = this.getDiv( "name" );
+  bar.style.opacity = 1;
   name.style.opacity = 1;
 }
 
 graphNode.prototype.hideName = function(){
+  let bar = this.getDiv( "bar" );
   let name = this.getDiv( "name" );
+  bar.style.opacity = .2;
   name.style.opacity = 0;
 }
 
